@@ -1,0 +1,220 @@
+# 示例角色包配置。新建自己的角色包：复制整个 profiles/example 为 profiles/<名字>，
+# 在 .env 里写 SHARK_PROFILE=<名字>，再改这份文件。敏感项也可以用环境变量覆盖（见 .env.example）。
+# 带「实时生效」的段落改完立即生效；也可以在本地看板「配置」页改，会写回这个文件并保留注释。
+
+# 机器人自己：name 用在看板标题、群消息记录、指令说明里
+bot:
+  name: 小助手
+
+qq:
+  id: ""            # 机器人 AppID（或环境变量 QQ_BOT_ID）
+  secret: ""        # AppSecret（或环境变量 QQ_BOT_SECRET）
+  type: private     # private | public
+  sandbox: false    # 只对 QQ 频道有效；群聊和私聊的沙箱测试在开放平台「沙箱配置」里加群和成员即可，这里保持 false
+  protocol: websocket   # websocket（本机首选） | webhook（需内网穿透）
+  webhookPath: /qq
+
+agent:
+  # DeepSeek API Key 走环境变量 DEEPSEEK_API_KEY
+  model: deepseek-flash     # 支持图片输入；deepseek-v4-pro 只支持文本
+  maxTokens: 1024
+  reasoningEffort: "off"    # off | low | high | max；off = 不思考，最快最省
+  contextWindow: 64000      # 超过约 80% 自动压缩旧对话
+  persona: companion        # 使用角色包 persona/<名字>.yaml（切换要重启 dsh；文件内容改了下一句就生效）
+  timeoutSec: 120
+  errorReply: "脑袋卡住了，等会儿再试试吧" # 模型调用失败时回的话
+  splitReply: 3             # 回复按换行拆成几条连发，最多 4（1 = 不拆）
+  memoryLimit: 8            # 召回条数：每轮放进消息头的相关记忆（不命中缓存），也是 recall 工具一次返回的上限
+  # 发送前强制替换的词，模型偶尔说漏也不会发出去（长词放前面），例如 "某个词": "替换成"
+  replaceWords: {}
+  # 语音：火山引擎豆包语音。凭证写在 .env（VOLC_TTS_APP_ID / VOLC_TTS_ACCESS_TOKEN），
+  # speaker 填控制台音色库里的音色 ID；speaker 留空 = 不启用语音。改完要重启 dsh。
+  tts:
+    speaker: ""
+    defaultTone: "自然、亲切的语气"
+
+# 功能开关（实时生效）
+features:
+  stickers: true            # 发表情包（图放在角色包 assets/stickers/<标签>/ 下）
+  stickerEvery: 15          # 每个会话每回复 N 次顺手发一个表情包，0 = 不主动发
+  lookImage: true           # 看图
+  webSearch: true           # 联网搜索 / 读网页（DeepSeek Search & Fetch API）
+  ownerOnlyTools: [web_search, web_fetch, generate_image, edit_image, sing_cover] # 只给主人用的工具，别人触发时直接拒绝（看板「配置 → 功能」里勾选）
+  voice: true               # 发语音总开关（还需在 agent.tts 配好 TTS 服务）
+
+group:
+  trigger:
+    onName: ["小助手"]       # 开通「接收所有消息」后，消息里出现这些词就回复
+    interest: 0             # 没人叫时主动插话的概率（每条消息），0 = 关闭；插话会花 token
+    cooldownSec: 60
+  observeWindow: 15         # 没叫她的群消息留最近多少条作上下文，0 = 不旁听
+
+# 每日额度，单位 credits（实时生效）：每一笔真实花费（模型 token、看图、联网、语音）按官方人民币价格算，再乘汇率。
+# 北京时间 0 点重置。个人上限可在看板「额度」页单独改、充值；超出上限后从充值余额里扣。
+quota:
+  creditsPerYuan: 10000 # 汇率：1 元 = 多少 credits（一轮对话常见 3～5 credits）
+  user: 2000 # 每人每天上限（默认值）
+  group: 20000 # 每群每天上限（管理员的花费不算在内）
+  global: 100000 # 全局每天上限
+  exceededReply: "今天的额度用光啦，明天再来找我吧～" # 个人额度用完时
+  sharedExceededReply: "今天群里的总额度用完啦（不是你的个人额度），明天再来找我吧～" # 群 / 全局额度用完时
+
+# 每天定时主动问候。第一次启动时会自动迁成定时任务（看板「定时任务」页，之后在那里改），这一段随即删掉。主动消息发不出去时（平台限制 / 用户关了"允许主动发送"），
+# 改成当天第一个人说话时先补上。
+greeting:
+  enabled: false
+  time: "09:00" # 北京时间
+  owner: true # 私聊主人（主人要先私聊过机器人一次）
+  groups: [] # 群 openid；留空 = 机器人待过的所有群
+  catchupMin: 120 # 到点时网关没开，开机后这么久之内补发
+  # 交给模型的提示（不是直接发出的话），{time} 会替换成「日期，星期几，早上 HH:MM」
+  groupPrompt: |-
+    （这不是谁发来的消息，是你每天的习惯）现在是{time}，你主动在群里跟大家说早安。
+    一两句话，贴心一点，别跟前几天说过的重复。
+  ownerPrompt: |-
+    （这不是主人发来的消息，是你每天的习惯）现在是{time}，你主动私聊主人说早安。
+    一两句话，温柔一点；记忆里如果有主人最近在忙的事，可以自然地关心一句。
+
+# 文生图（改模型要重启 dsh）：低质量走智谱（.env 的 ZHIPU_API_KEY），高质量走火山方舟 Seedream（ARK_API_KEY）
+imageGen:
+  lowModel: cogview-3-flash # cogview-3-flash 免费；cogview-4 0.06 元 / 张；glm-image 0.1 元 / 张
+  highModel: doubao-seedream-5-0-flash-260915 # 5.0 flash 0.12 元 / 张；5.0 pro（doubao-seedream-5-0-pro-260628）0.3 元 / 张
+  defaultQuality: low # 不指定质量时用哪档：low = 智谱，high = Seedream
+  reference: "" # 图生图默认参考图（机器人画自己时用）：链接或角色包里的路径，例如 assets/character/三视图.png
+
+# 表情包库策略（实时生效）。看板「表情包」页可以导入、编辑、审核。
+stickers:
+  allowSubjects: [] # 只发这些题材的表情（画的是谁，例如某个角色名）；留空 = 不限
+  defaultSubjects: [] # 表情索引和手动目录的表情没单独标题材时按这个算
+  requireReview: true # 机器人在聊天里收藏的表情，要在看板审核通过才会发
+  archiveDir: assets/archive # 表情索引目录：放 index.json 和图片，格式见 profiles/README.md
+
+# 她帮人设的定时任务（schedule 工具，实时生效）：到点按设任务的人的身份和额度执行
+jobs:
+  enabled: true
+  maxPerUser: 5 # 每人最多同时几个任务（超级用户不限）
+  minIntervalMin: 10 # 重复任务最短间隔，分钟（超级用户不限）
+
+# 视频链接解析（实时生效）：send_video 工具把抖音、B 站等链接里的视频下载下来发出去。
+# B 站和其他网站要装 yt-dlp（pip install yt-dlp）；B 站高画质可在 .env 填 BILIBILI_SESSDATA
+video:
+  enabled: true # 她能用 send_video 发视频
+  auto: true # 自动解析：群里出现视频链接时，就算没叫她也让她跑一轮去发（花 credits，记在群上）
+  groups: [] # 自动解析在哪些群生效；留空 = 所有群
+  platforms: [douyin, bilibili, other] # other = 下面 otherSites 里的网站
+  otherSites: [kuaishou.com, weibo.com, acfun.cn, youtube.com, youtu.be, x.com, twitter.com]
+  maxDurationMin: 10 # 超过只发标题那一行；0 = 不限
+  maxSizeMB: 50 # 按这个挑画质，实在太大就不发
+  dedupeMin: 30 # 同一个群同一个视频多少分钟内只发一次（下载的文件 1 小时后自动删）
+
+# 翻唱（看板「配置 → 翻唱」）：sing_cover 工具在本机找歌、去掉原唱、用 RVC 换成角色音色再混音，作为语音发出去。
+# 要先装好 tools/cover 的 Python 环境（见 tools/cover/README.md），音色模型放 modelDir；开关改了要重启 dsh，其他实时生效
+cover:
+  enabled: false # 放好音色模型、装好环境后再打开
+  modelDir: assets/cover/voice # 角色包里放 RVC 模型（.pth，最好带 .index）的目录
+  lengthSec: 60 # 默认唱副歌这么多秒（20–90）
+  autoTranspose: true # 原唱是男声时自动升 12 个半音
+  transpose: 0 # 在自动变调之外再固定加减几个半音
+  indexRate: 0.5
+  protect: 0.33
+  dailyLimit: 10 # 每个群 / 私聊每天最多几首；0 = 不限
+  maxSongMinutes: 8 # 原曲超过这么长不唱
+  idleMinutes: 10 # 翻唱进程空闲多久退出、释放显存
+
+# 冷场寒暄（实时生效）：群里安静满 minutes 分钟（不算她自己说的话）就主动冒个泡，一直没人说话就隔同样时长再来，最多 maxInRow 次
+idle:
+  enabled: false
+  minutes: 60 # 安静多久就寒暄，单位分钟；0 = 10 秒（调试用）
+  maxInRow: 3 # 一直没人说话时最多连续寒暄几次，0 = 不限
+  activeHours: "09:00-23:00" # 只在这个时段里寒暄；00:00-00:00 = 全天
+  groups: [] # 群 openid；留空 = 所有群
+  # prompt: 交给模型的提示，不写就用内置的；{silence}（"10 秒" / "62 分钟"）{minutes} {time} 会被替换
+
+# 每天睡前写日记发到群里。同上，第一次启动时迁成定时任务。机器人会自己读今天的群聊、回忆群友的事，再写一篇。
+diary:
+  enabled: false
+  time: "23:59" # 北京时间
+  catchupMin: 0 # 到点时网关没开，开机后这么久之内补写；跨过 0 点就不补了
+  groups: [] # 群 openid；留空 = 机器人待过的所有群
+  minMessages: 10 # 今天群里少于这么多条消息就不写
+  # prompt: 交给模型的提示，不写就用内置的通用版；{time} {date} {weekday} {hours} 会被替换
+
+# 自定义命令（实时生效，看板「命令」页增删改）。action：task = 立即执行定时任务（任务编号，如 greeting / diary；idle = 冷场寒暄），
+# prompt = 把提示交给她回复，reply = 直接回复固定文字；{args} = 命令后面跟的内容
+commands:
+  - name: 早安
+    aliases: [shark.greet]
+    description: 立即发一次早安（测试定时问候）
+    permission: admin
+    scene: any
+    action: task
+    task: greeting
+  - name: 写日记
+    aliases: [shark.diary]
+    description: 立即写一次今天的日记
+    permission: admin
+    scene: group
+    action: task
+    task: diary
+
+# 关键词自动表情（实时生效）：回复里出现关键词就自动附上这张图。
+# 网关直接发，不经过模型、不花 token；keyword 用 | 分隔多种写法，image 是角色包里 assets 下的图片路径。
+keywordStickers: []
+#  - keyword: "晚安|睡了"
+#    image: assets/stickers/睡觉/晚安.png
+#    cooldownMin: 30 # 同一个群 / 私聊里发过之后多少分钟内不再发，0 = 每次都发
+
+# 记忆（实时生效）：召回参数 + 记忆梳理（群和私聊）。召回条数在 agent.memoryLimit。
+memory:
+  minScore: 0 # 相关度低于这个值不召回（0～1，0 = 不过滤）
+  recallGroup: true # 群聊里同时召回群记忆
+  digest:
+    enabled: false # 每个群 / 私聊每攒够一批消息，用 mem0 提取每个人的画像和偏好（会花 token）；间隔 1 = 每轮都提取
+    everyMessages: 20
+    minLines: 2 # 这一批里至少说了几句才梳理
+    maxPeople: 8 # 每次最多梳理几人（每人一次 mem0 调用）
+  shortTerm: # 短期记忆：群友消息、她的回复和工具调用的原文
+    retentionDays: 180 # 原文保留天数
+    toolResultChars: 500 # 工具结果存多少字
+    deepRecallChars: 6000 # deep_recall 一次最多返回多少字，放不下就给段目录 / 分页
+    episodeGapMin: 30 # 原文按段组织：冷场多久切一段（分钟），不按天切
+    episodeMaxRows: 60 # 一段超过这么多行后遇到停顿就切
+    summaries: true # 每段聊完写一句话摘要
+    summaryModel: deepseek-flash
+  portrait: # 按人召回和群友画像
+    enabled: true
+    personLimit: 3 # 发言人和被 @ 的人每人保底召回几条记忆
+    mentionLimit: 2 # 除发言人外最多再带几个被提到的人
+    reinjectHours: 6 # 画像全文隔多久重放一次
+  night: # 夜间把群友的记忆融合成画像（私聊内容不进画像）
+    enabled: true
+    time: "04:00"
+    maxPeople: 30
+    minMemories: 3
+
+# 新人入群欢迎 + 群规（实时生效）。/群规 命令随时可查。
+welcome:
+  enabled: true
+  rules: "" # 群规全文，多行用 | 写法
+  prompt: "（这不是谁发来的消息）有新成员刚进群，你主动欢迎一下 TA。一两句话，热情但别太夸张。" # 交给模型的欢迎提示
+
+# 本地看板 http://127.0.0.1:5140/ （只监听本机；webhook 模式也复用这个端口）
+dashboard:
+  port: 5140
+
+admins: []                  # 管理员 openid，不受限额约束（私聊机器人发 /shark.whoami 查）
+
+# 主人：人格里"只听主人的"靠这里识别，别人自称主人无效（openid 用 /shark.whoami 查）
+owner:
+  id: ""
+  name: ""
+
+# 超级用户：能让她在聊天里改配置（config 工具，要二次确认）；主人总是超级用户，不用写在这里
+superUsers: []
+
+ipWatch:
+  enabled: true
+  intervalMin: 5
+  # IP 一变，QQ 接口会被白名单拒绝，所以不能用 QQ 本身通知。
+  # 可填一个 GET 推送地址（如 Server酱 / Bark），{ip} 会被替换为新 IP；留空则只写日志。
+  notifyUrl: ""

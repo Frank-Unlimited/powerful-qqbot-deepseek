@@ -1,0 +1,17 @@
+node_modules/
+data/
+.env
+__pycache__/
+*.log
+
+# 角色包：只发布示例，其余（自己的人格、配置、表情包）各自单独做私有仓库
+profiles/*
+!profiles/example/
+!profiles/README.md
+
+# 翻唱进程的 Python 环境和下载的公共权重
+tools/cover/.venv/
+tools/cover/models/
+
+# 宣传截图的原图（含群友信息），打码后的在 docs/images/
+img/

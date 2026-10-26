@@ -1,0 +1,39 @@
+{
+  "name": "shark-bot-gateway",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "tsx --env-file-if-exists=../.env src/index.ts",
+    "dev": "tsx watch --env-file-if-exists=../.env src/index.ts",
+    "smoke": "tsx --env-file-if-exists=../.env scripts/smoke-dsh.ts",
+    "typecheck": "tsc --noEmit",
+    "bind": "tsx scripts/bind-qq.ts",
+    "tts-test": "tsx --env-file-if-exists=../.env scripts/tts-test.ts",
+    "check": "tsc --noEmit -p . && node scripts/check-build.mjs && node scripts/check-tools.mjs --self-test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@deepseek-ai/dsh": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-sdk-client": "^0.2.1-rc.2",
+    "@koishijs/plugin-adapter-qq": "^4.14.0",
+    "@koishijs/plugin-database-sqlite": "^4.7.0",
+    "@koishijs/plugin-http": "^0.6.3",
+    "@koishijs/plugin-server": "^3.2.9",
+    "@tencent-connect/qqbot-connector": "^1.2.0",
+    "better-sqlite3": "^12.11.1",
+    "fastembed": "^2.1.1",
+    "ffmpeg-static": "^5.3.0",
+    "koishi": "^4.18.11",
+    "koishi-plugin-silk": "^2.0.1",
+    "mem0ai": "^3.3.1",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  },
+  "private": true
+}
